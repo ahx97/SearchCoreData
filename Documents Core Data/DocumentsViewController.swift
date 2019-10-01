@@ -13,19 +13,33 @@ class DocumentsViewController: UIViewController, UITableViewDataSource, UITableV
     @IBOutlet weak var documentsTableView: UITableView!
     let dateFormatter = DateFormatter()
     var documents = [Document]()
+    
+    let searchController = UISearchController(searchResultsController: nil)
+    var searchedDocuments = [Document]()
+    
 
     override func viewDidLoad() {
         super.viewDidLoad()
         
+        setupSearchBar()
         title = "Documents"
-
+        
         dateFormatter.dateStyle = .medium
         dateFormatter.timeStyle = .medium
     }
     
     override func viewWillAppear(_ animated: Bool) {
         fetchDocuments()
+        setupSearchBar()
         documentsTableView.reloadData()
+    }
+    
+    func setupSearchBar(){
+        searchController.searchResultsUpdater = self
+        searchController.obscuresBackgroundDuringPresentation = false
+        searchController.searchBar.placeholder = "Search Documents"
+        navigationItem.searchController = searchController
+        definesPresentationContext = true
     }
     
     func alertNotifyUser(message: String) {
@@ -76,14 +90,25 @@ class DocumentsViewController: UIViewController, UITableViewDataSource, UITableV
     }
     
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+        if isFiltering(){
+            return searchedDocuments.count
+        }
         return documents.count
     }
     
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        
         let cell = tableView.dequeueReusableCell(withIdentifier: "documentCell", for: indexPath)
+        let document: Document
+        
+        if isFiltering(){
+            document = searchedDocuments[indexPath.row]
+        } else{
+            document = documents[indexPath.row]
+        }
         
         if let cell = cell as? DocumentTableViewCell {
-            let document = documents[indexPath.row]
+            //let document = documents[indexPath.row]
             cell.nameLabel.text = document.name
             cell.sizeLabel.text = String(document.size) + " bytes"
             
@@ -110,26 +135,36 @@ class DocumentsViewController: UIViewController, UITableViewDataSource, UITableV
         }
     }
     
-    // There are two approaches to implementing deletion of table view cells.  Both are provided below.
-    
-    // Approach 1: using editing style
     func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCellEditingStyle, forRowAt indexPath: IndexPath) {
         if editingStyle == .delete {
             deleteDocument(at: indexPath)
         }
     }
-    
-    /*
-    // Approach 2: using editing actions
-    func tableView(_ tableView: UITableView, editActionsForRowAt indexPath: IndexPath) -> [UITableViewRowAction]? {
-        let delete = UITableViewRowAction(style: .destructive, title: "Delete") {
-            action, index in
-            self.deleteDocument(at: indexPath)  // self is required because inside of closure
-        }
-        
-        return [delete]
+      
+    func searchBarIsEmpty() -> Bool {
+      // Returns true if the text is empty or nil
+      return searchController.searchBar.text?.isEmpty ?? true
     }
-    */
- 
+      
+    func filterContentForSearchText(_ searchText: String, scope: String = "All") {
+        searchedDocuments = documents.filter({(document: Document) -> Bool in
+            return (document.name?.lowercased().contains(searchText.lowercased()))!
+        })
+        documentsTableView.reloadData()
+    }
 
+    func isFiltering() -> Bool {
+      return searchController.isActive && !searchBarIsEmpty()
+    }
+    
 }
+
+extension DocumentsViewController: UISearchResultsUpdating {
+    
+  func updateSearchResults(for searchController: UISearchController) {
+    print("Update")
+    filterContentForSearchText(searchController.searchBar.text!)
+  }
+}
+
+
